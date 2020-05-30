@@ -1,0 +1,29 @@
+{
+    "name": "nlohmann_json",
+    "version": "scan-https://github.com/nlohmann/json/releases",
+    "summary": "JSON for Modern C++",
+    "description": "long description",
+    "homepage": "https://github.com/nlohmann/json",
+    "license": {
+        "type": "MIT",
+        "text": ""
+    },
+    "authors": {
+        "Your Name": "yourl@email.com"
+    },
+    "artifact": {
+        "archive": "https://github.com/nlohmann/json/releases/download/v$version/json.hpp",
+        "extract": false
+    },
+    "constraints": [
+    ],
+    "dependencies": {
+    },
+    "dir_map": {
+        "/" : "/nlohmann"
+    },
+    "file_map": {
+    },
+    "exclude_files": [
+    ]
+}

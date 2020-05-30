@@ -1,0 +1,33 @@
+{
+    "repos": [
+        {"git": "git@bitbucket.org:benman/teaport-cpp-spec.git"},
+    ],
+    "dependencies": {
+        "teaport_utils": {
+            "artifact": {
+                "git": "git@bitbucket.org:benman/teaport.git",
+                "tag": "dev"
+            },
+            "file_map": {
+                "/src/cpp/utils/*/.*": "/"
+            }
+        },
+        "iostream": {
+            "artifact": {
+                "git": "git@bitbucket.org:benman/iostreams.git",
+                "tag": "master"
+            },
+            "file_map": {
+                "/src/*/.*": "/"
+            }
+        },
+        "sqlite": "3.+",
+        "nlohmann_json": "+",
+        "subprocess": "0.1.+"
+    },
+    "build_config": {
+
+    },
+
+    "output_dir": "teas"
+}

@@ -1,0 +1,9 @@
+{
+    "artifact": {
+        "git": "git@bitbucket.org:benman/iostreams.git",
+        "tag": "master"
+    },
+    "file_map": {
+        "/src/*/.*": "/"
+    }
+}

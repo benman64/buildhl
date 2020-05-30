@@ -1,0 +1,25 @@
+{
+    "dependencies": {
+        "iostream": {
+            "score": 1,
+            "version": "master"
+        },
+        "nlohmann_json": {
+            "score": 1,
+            "version": "3.7.3"
+        },
+        "sqlite": {
+            "score": 1,
+            "version": "3.28.0"
+        },
+        "subprocess": {
+            "score": 1,
+            "version": "0.1.0"
+        },
+        "teaport_utils": {
+            "score": 1,
+            "version": "dev"
+        }
+    },
+    "version_code": 2
+}
