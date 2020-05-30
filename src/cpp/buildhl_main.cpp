@@ -24,15 +24,19 @@ std::string dirname(std::string path) {
 
 class StreamProcessor {
 public:
-    StreamProcessor(){}
+    StreamProcessor(){
+        process_line("[build start]");
+    }
     StreamProcessor(const std::string log_file) {
         std::string dir = dirname(log_file);
         if (!tea::path_exists(dir)) {
             tea::mkdir_p(dir);
         }
-        FILE* fp = fopen(log_file.c_str(), "w");
+        FILE* fp = nullptr;
+        if (!log_file.empty())
+            fp = fopen(log_file.c_str(), "w");
         if (fp == nullptr) {
-            log("could not open for writing: " + log_file);
+            process_line("could not open for writing: " + log_file);
         } else {
             m_log_file = std::make_unique<CFileOutputStream>(fp);
         }
@@ -173,7 +177,7 @@ private:
         if (m_update_thread.joinable())
             m_update_thread.join();
     }
-    CFileOutputStream_uptr m_log_file;
+    OutputStream_uptr m_log_file;
     FileFilter m_file_filter;
     subprocess::StopWatch m_stop_watch;
     ProgressGraph m_progress;
@@ -195,6 +199,12 @@ std::vector<std::string> argv_to_vector(int argc, char** argv) {
     return result;
 }
 
+struct CinStream : buildhl::InputStream {
+    ssize_t read(void* buffer, size_t size) override {
+        return fread(buffer, 1, size, stdin);
+    }
+};
+
 int main(int argc, char** argv) {
     for (int i = 1; i < argc; ++i) {
         if (strcmp(argv[i], "--version") == 0) {
@@ -205,10 +215,10 @@ int main(int argc, char** argv) {
     }
 
     if (argc == 2 && strcmp(argv[1], "-") == 0) {
-        for (std::string line; std::getline(std::cin, line);) {
-            line = color_line(line);
-            std::cout << line << '\n';
-        }
+        StreamProcessor stream_processor;
+        stream_processor.add_search_path(tea::getcwd());
+        CinStream cin;
+        stream_processor.process(cin);
         return 0;
     }
 

@@ -41,6 +41,17 @@ namespace buildhl {
     public:
         virtual ssize_t write(const void* buffer, size_t size)=0;
     };
+
+    class NullStream : public InputStream, public OutputStream {
+    public:
+        ssize_t write(const void* buffer, size_t size) override {
+            return size;
+        }
+        ssize_t read(void* buffer, size_t) override {
+            return 0;
+        }
+    };
+
     class CFileOutputStream : public OutputStream {
     public:
         CFileOutputStream(){}
@@ -62,6 +73,7 @@ namespace buildhl {
     };
     typedef unique_ptr<InputStream> InputStream_uptr;
     typedef unique_ptr<OutputStream> OutputStream_uptr;
+    typedef unique_ptr<NullStream> NullStream_uptr;
     typedef unique_ptr<CFileOutputStream> CFileOutputStream_uptr;
 
     struct PipeInputStream : InputStream {
