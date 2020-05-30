@@ -39,6 +39,9 @@ namespace buildhl {
             Progress progress;
             progress.complete   = std::stod(match[1]);
             progress.total      = std::stod(match[2]);
+            // if this is the case probably it's not a progress indicator
+            if (progress.complete > progress.total)
+                return {};
             return progress;
         }
         return {};
@@ -51,6 +54,7 @@ namespace buildhl {
         return result;
     }
     std::string render_progress(double progress, int width) {
+        progress = std::max(1.0, progress);
         std::string line = "[";
         int total_spots = width -2;
         int spots = total_spots*progress;

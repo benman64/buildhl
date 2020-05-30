@@ -1,5 +1,20 @@
 # buildhl
 
+A tool that highlights builds and can rewrite output for better CTRL+CLICK
+for IDE's that support it in terminals.
+
+# Install
+
+```
+mkdir build
+cd build
+cmake ../
+make
+make install
+```
+
+# Examples
+
 example usage
 
 ```

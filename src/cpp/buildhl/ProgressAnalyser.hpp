@@ -78,9 +78,13 @@ namespace buildhl {
         double total    = 0;
 
         operator double() const {
-            if (total == 0)
+            if (!*this)
                 return 0;
             return complete/total;
+        }
+
+        explicit operator bool() const {
+            return total > 0 && complete > 0;
         }
     };
 

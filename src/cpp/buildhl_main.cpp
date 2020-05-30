@@ -92,7 +92,7 @@ public:
         if (line[line.size()-1] != '\n')
             std::cout << '\n';
 
-        if (progress.total > 0) {
+        if (progress > 0) {
             m_progress.complete(progress);
         }
         m_last_is_progress  = false;
@@ -194,6 +194,7 @@ std::vector<std::string> argv_to_vector(int argc, char** argv) {
     }
     return result;
 }
+
 int main(int argc, char** argv) {
     for (int i = 1; i < argc; ++i) {
         if (strcmp(argv[i], "--version") == 0) {
