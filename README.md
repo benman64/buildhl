@@ -5,6 +5,23 @@ for IDE's that support it in terminals.
 
 # Install
 
+## Homebrew
+
+1 line:
+
+```
+brew install benman64/tap/buildhl
+```
+
+or you can also add the tap & install
+
+```
+brew tap benman64/tap
+brew install buildhl
+```
+
+## From source
+
 ```
 mkdir build
 cd build
