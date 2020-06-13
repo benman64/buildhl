@@ -136,6 +136,12 @@ namespace buildhl {
             return true;
         if (vars["CMAKE_PROJECT_NAME"].empty())
             return true;
+        std::string cmake_file = tea::join_path(vars["CMAKE_HOME_DIRECTORY"], "CMakeLists.txt");
+        if (!tea::path_exists(cmake_file)) {
+            return false;
+        }
+        if (fs::last_write_time(cmake_file) > fs::last_write_time(cmake_cache_file))
+            return true;
         return false;
     }
 
