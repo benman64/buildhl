@@ -9,6 +9,7 @@
 
 namespace buildhl {
     using std::unique_ptr;
+    typedef intptr_t ssize_t;
     typedef std::vector<std::string> CommandLine;
 
     enum class BuildType {
