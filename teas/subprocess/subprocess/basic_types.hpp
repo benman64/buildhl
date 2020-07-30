@@ -17,6 +17,9 @@
 
 
 namespace subprocess {
+    // ssize_t is not a standard type and not supported in MSVC
+    typedef intptr_t ssize_t;
+
     /*  windows doesnt'h have all of these. The numeric values I hope are
         standardized. Posix specifies the number in the standard so most
         systems should be fine.
@@ -160,4 +163,8 @@ namespace subprocess {
             return returncode == 0;
         }
     };
+
+    namespace details {
+        void throw_os_error(const char* function, int errno_code);
+    }
 }

@@ -14,6 +14,13 @@ namespace subprocess {
     EnvironSetter::EnvironSetter(const std::string& name) {
         mName = name;
     }
+    EnvironSetter::operator bool() const {
+        if (mName.empty())
+            return false;
+        const char* value = ::getenv(mName.c_str());
+        if (value == nullptr) return false;
+        return !!*value;
+    }
     std::string EnvironSetter::to_string() {
         const char *value = ::getenv(mName.c_str());
         return value? value : "" ;
@@ -72,8 +79,11 @@ namespace subprocess {
         EnvMap env;
 #ifdef _WIN32
         static_assert(sizeof(wchar_t) == 2, "unexpected size of wchar_t");
-        wchar_t* list = GetEnvironmentStringsW();
-        for (;*list; list += strlen16(list)+1) {
+        wchar_t* env_block = GetEnvironmentStringsW();
+        if (env_block == nullptr) {
+            throw OSError("GetEnvironmentStringsW failed");
+        }
+        for (wchar_t* list = env_block; *list; list += strlen16(list)+1) {
             std::string u8str = utf16_to_utf8(list);
             const char *name_start = u8str.c_str();
             const char *name_end = name_start;
@@ -86,7 +96,7 @@ namespace subprocess {
                 continue;
             env[name] = value;
         }
-        FreeEnvironmentStringsW(list);
+        FreeEnvironmentStringsW(env_block);
 #else
         for (char** list = environ; *list; ++list) {
             char *name_start = *list;

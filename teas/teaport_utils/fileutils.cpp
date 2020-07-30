@@ -116,10 +116,84 @@ namespace tea {
         }
         return path;
     }
+
+    bool files_readonly_recurse(const fs::path& path) {
+        bool success = true;
+        const auto all_write = std::filesystem::perms::owner_write |
+            std::filesystem::perms::group_write |
+            std::filesystem::perms::others_write;
+
+        if (is_dir(path.string())) {
+            // try 3 times
+            for (int i = 0; i < 3; ++i) {
+                success = true;
+                try {
+                    for (auto& it : RecursiveDirIt(path)) {
+                        if (it.is_directory())
+                            continue;
+                        std::filesystem::permissions(
+                            it.path(),
+                            all_write,
+                            std::filesystem::perm_options::remove
+                        );
+                    }
+                } catch (...) {
+                    success = false;
+                }
+            }
+        } else {
+            try {
+                std::filesystem::permissions(
+                    path,
+                    all_write,
+                    std::filesystem::perm_options::remove
+                );
+            } catch (...) {
+                success = false;
+            }
+        }
+        return success;
+    }
+
+    bool owner_write_recurse(const fs::path& path) {
+        bool success = true;
+
+        if (is_dir(path.string())) {
+            // try 3 times
+            for (int i = 0; i < 3; ++i) {
+                success = true;
+                try {
+                    for (auto& it : RecursiveDirIt(path)) {
+                        std::filesystem::permissions(
+                            it.path(),
+                            std::filesystem::perms::owner_write,
+                            std::filesystem::perm_options::add
+                        );
+                    }
+                } catch (...) {
+                    success = false;
+                }
+            }
+        } else {
+            try {
+                std::filesystem::permissions(
+                    path,
+                    std::filesystem::perms::owner_write,
+                    std::filesystem::perm_options::add
+                );
+            } catch (...) {
+                success = false;
+            }
+        }
+        return success;
+    }
+
     bool rmdir(const std::string& path) {
         if(path.empty())
             return false;
         assert(path != "/");
+        owner_write_recurse(path);
+
         bool success = false;
         try {
             std::filesystem::remove_all(path);
@@ -128,10 +202,15 @@ namespace tea {
         }
         return success;
     }
+
     bool rmdir(const fs::path& path) {
         if(path.empty())
             return false;
         assert(path.string() != "/");
+
+        // add write permissions so we can remove the file on windows
+        owner_write_recurse(path);
+
         bool success = false;
         try {
             std::filesystem::remove_all(path);

@@ -46,6 +46,8 @@ namespace tea {
     std::string dirname(std::string path);
     std::string basename(std::string path);
 
+    bool files_readonly_recurse(const std::filesystem::path& path);
+
     bool rmdir(const std::string& dir);
     bool rmdir(const std::filesystem::path& path);
     inline bool rmdir(const char* str) {return rmdir(std::filesystem::path(str));}

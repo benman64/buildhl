@@ -17,7 +17,7 @@ namespace buildhl {
         }
 #ifdef _WIN32
         if(path.size() == 2) {
-            if(tea::is_drive(path[0]) && path[1] == ':')
+            if(is_drive(path[0]) && path[1] == ':')
                 path += '/';
         }
 #endif

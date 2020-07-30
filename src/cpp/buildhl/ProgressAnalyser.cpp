@@ -2,6 +2,14 @@
 
 #include <subprocess.hpp>
 #include <regex>
+#include <algorithm>
+
+#ifdef min
+#undef min
+#endif
+#ifdef max
+#undef max
+#endif
 
 using subprocess::monotonic_seconds;
 namespace buildhl {
@@ -54,7 +62,9 @@ namespace buildhl {
         return result;
     }
     std::string render_progress(double progress, int width) {
-        progress = std::max(1.0, progress);
+        progress = std::min(1.0, progress);
+        progress = std::max(0.0, progress);
+
         std::string line = "[";
         int total_spots = width -2;
         int spots = total_spots*progress;

@@ -45,6 +45,9 @@ namespace subprocess {
         */
         PipeVar     cerr    = PipeOption::inherit;
 
+        /** Set to true to run as new process group */
+        bool        new_process_group   = false;
+
         /** current working directory for new process to use */
         std::string cwd;
         /** If empty inherits from current process */
@@ -172,6 +175,7 @@ namespace subprocess {
         PipeOption cout_option    = PipeOption::inherit;
         PipeOption cerr_option    = PipeOption::inherit;
 
+        bool new_process_group            = false;
         /** If empty inherits from current process */
         EnvMap      env;
         std::string cwd;
@@ -201,8 +205,11 @@ namespace subprocess {
                 non-zero error code
         @throw  TimeoutExpired if subprocess does not finish by timeout
                 seconds.
-        @throw  OSError for os level exceptions.
+        @throw  OSError for os level exceptions such as failing OS commands.
         @throw  std::runtime_error for various errors.
+        @throw  std::invalid_argument if argument is invalid for current usage.
+        @throw  std::domain_error when arguments don't make sense working together
+
         @return a CompletedProcess once the command has finished.
     */
     CompletedProcess run(Popen& popen, bool check=false);
@@ -241,7 +248,8 @@ namespace subprocess {
         RunBuilder& env(const EnvMap& env) {options.env = env; return *this;}
         /** Timeout to use for run() invocation only. */
         RunBuilder& timeout(double timeout) {options.timeout = timeout; return *this;}
-
+        /** Set to true to run as new process group */
+        RunBuilder& new_process_group(bool new_group) {options.new_process_group = new_group; return *this;}
         operator RunOptions() const {return options;}
 
         /** Runs the command already configured.

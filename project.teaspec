@@ -23,7 +23,7 @@
         },
         "sqlite": "3.+",
         "nlohmann_json": "+",
-        "subprocess": "0.1.+"
+        "subprocess": "0.3.+"
     },
     "build_config": {
 

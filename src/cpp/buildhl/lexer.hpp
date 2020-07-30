@@ -5,6 +5,14 @@
 #include <string>
 #include <cstring>
 
+// OMG MACROS
+#ifdef min
+#undef min
+#endif
+#ifdef max
+#undef max
+#endif
+
 namespace lex {
     struct Range {
         int start   = 0;

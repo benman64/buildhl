@@ -17,55 +17,27 @@
 #include <thread>
 #include <mutex>
 #include <chrono>
+#include <cstring>
 
 #include "shell_utils.hpp"
-#include "environ.hpp"
 #include "utf8_to_utf16.hpp"
 
-extern "C" char **environ;
 
 using std::nullptr_t;
-namespace {
-    struct cstring_vector {
-        typedef char* value_type;
-        ~cstring_vector() {
-            clear();
-        }
-        void clear() {
-            for (char* ptr : m_list) {
-                if (ptr)
-                    free(ptr);
-            }
-            m_list.clear();
-        }
 
-        void reserve(std::size_t size) {
-            m_list.reserve(size);
-        }
-        void push_back(const std::string& str) {
-            push_back(str.c_str());
-        }
-        void push_back(nullptr_t) {
-            m_list.push_back(nullptr);
-        }
-        void push_back(const char* str) {
-            char* copy = str? strdup(str) : nullptr;
-            m_list.push_back(copy);
-        }
-        void push_back_owned(char* str) {
-            m_list.push_back(str);
-        }
-        value_type& operator[](std::size_t index) {
-            return m_list[index];
-        }
-        char** data() {
-            return &m_list[0];
-        }
-        std::vector<char*> m_list;
-    };
+// TODO: throw exceptions on various os errors.
 
-}
 namespace subprocess {
+    namespace details {
+        void throw_os_error(const char* function, int errno_code) {
+            if (errno_code == 0)
+                return;
+            std::string message = function;
+            message += " failed: " + std::to_string(errno) + ": ";
+            message += std::strerror(errno_code);
+            throw OSError(message);
+        }
+    }
     double monotonic_seconds() {
         static bool needs_init = true;
         static std::chrono::steady_clock::time_point begin;
@@ -188,7 +160,7 @@ namespace subprocess {
         case PipeVarIndex::option: return;
         case PipeVarIndex::string: // doesn't make sense
         case PipeVarIndex::istream: // dousn't make sense
-            throw std::runtime_error("expected something to output to");
+            throw std::domain_error("expected something to output to");
         case PipeVarIndex::ostream:
             pipe_thread(input, std::get<std::ostream*>(output));
             break;
@@ -211,7 +183,7 @@ namespace subprocess {
             pipe_thread(std::get<std::istream*>(input), output, true);
             break;
         case PipeVarIndex::ostream:
-            throw std::runtime_error("reading from std::ostream doesn't make sense");
+            throw std::domain_error("reading from std::ostream doesn't make sense");
         case PipeVarIndex::file:
             pipe_thread(std::get<FILE*>(input), output, true);
             break;
@@ -237,18 +209,20 @@ namespace subprocess {
         if (builder.cin_option == PipeOption::specific) {
             builder.cin_pipe = std::get<PipeHandle>(options.cin);
             if (builder.cin_pipe == kBadPipeValue)
-                throw std::runtime_error("bad pipe value for cin");
+                throw std::invalid_argument("bad pipe value for cin");
         }
         if (builder.cout_option == PipeOption::specific) {
             builder.cout_pipe = std::get<PipeHandle>(options.cout);
             if (builder.cout_pipe == kBadPipeValue)
-                throw std::runtime_error("Popen constructor: bad pipe value for cout");
+                throw std::invalid_argument("Popen constructor: bad pipe value for cout");
         }
         if (builder.cerr_option == PipeOption::specific) {
             builder.cerr_pipe = std::get<PipeHandle>(options.cerr);
             if (builder.cout_pipe == kBadPipeValue)
-                throw std::runtime_error("Popen constructor: bad pipe value for cout");
+                throw std::invalid_argument("Popen constructor: bad pipe value for cout");
         }
+
+        builder.new_process_group = options.new_process_group;
         builder.env = options.env;
         builder.cwd = options.cwd;
 
@@ -347,7 +321,11 @@ namespace subprocess {
             throw OSError("WaitForSingleObject failed: " + std::to_string(result));
         }
         DWORD exit_code;
-        GetExitCodeProcess(process_info.hProcess, &exit_code);
+        int ret = GetExitCodeProcess(process_info.hProcess, &exit_code);
+        if (ret == 0) {
+            DWORD error = GetLastError();
+            throw OSError("GetExitCodeProcess failed: " + std::to_string(error) + ":" + lastErrorString());
+        }
         returncode = exit_code;
         return true;
     }
@@ -370,7 +348,11 @@ namespace subprocess {
             throw OSError("WaitForSingleObject failed: " + std::to_string(result));
         }
         DWORD exit_code;
-        GetExitCodeProcess(process_info.hProcess, &exit_code);
+        int ret = GetExitCodeProcess(process_info.hProcess, &exit_code);
+        if (ret == 0) {
+            DWORD error = GetLastError();
+            throw OSError("GetExitCodeProcess failed: " + std::to_string(error) + ":" + lastErrorString());
+        }
         returncode = exit_code;
         return returncode;
     }
@@ -384,8 +366,6 @@ namespace subprocess {
         } else if (signum == PSIGINT) {
             // can I use pid for processgroupid?
             success = GenerateConsoleCtrlEvent(CTRL_C_EVENT, pid);
-        } else if (signum == PSIGTERM) {
-            success = GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT, pid);
         } else {
             success = GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT, pid);
         }
@@ -399,8 +379,15 @@ namespace subprocess {
         auto child = waitpid(pid, &exit_code, WNOHANG);
         if (child == 0)
             return false;
-        if (child > 0)
-            returncode = exit_code;
+        if (child > 0) {
+            if(WIFEXITED(exit_code)) {
+                returncode = WEXITSTATUS(exit_code);
+            } else if (WIFSIGNALED(exit_code)) {
+                returncode = -WTERMSIG(exit_code);
+            } else {
+                returncode = 1;
+            }
+        }
         return child > 0;
     }
     int Popen::wait(double timeout) {
@@ -418,7 +405,13 @@ namespace subprocess {
                 }
                 break;
             }
-            returncode = exit_code;
+            if(WIFEXITED(exit_code)) {
+                returncode = WEXITSTATUS(exit_code);
+            } else if (WIFSIGNALED(exit_code)) {
+                returncode = -WTERMSIG(exit_code);
+            } else {
+                returncode = 1;
+            }
             return returncode;
         }
         StopWatch watch;
@@ -434,7 +427,7 @@ namespace subprocess {
     bool Popen::send_signal(int signum) {
         if (returncode != kBadReturnCode)
             return false;
-        return ::kill(-pid, signum) == 0;
+        return ::kill(pid, signum) == 0;
     }
 #endif
     bool Popen::terminate() {
@@ -469,136 +462,6 @@ namespace subprocess {
         }
         return args;
     }
-
-#ifdef _WIN32
-
-#else
-    Popen ProcessBuilder::run_command(const CommandLine& command) {
-        if (command.empty()) {
-            throw std::invalid_argument("command should not be empty");
-        }
-        std::string program = find_program(command[0]);
-        if(program.empty()) {
-            throw CommandNotFoundError("command not found " + command[0]);
-        }
-
-        Popen process;
-        PipePair cin_pair;
-        PipePair cout_pair;
-        PipePair cerr_pair;
-
-        posix_spawn_file_actions_t action;
-
-        posix_spawn_file_actions_init(&action);
-        if (cin_option == PipeOption::close)
-            posix_spawn_file_actions_addclose(&action, kStdInValue);
-        else if (cin_option == PipeOption::specific) {
-            if (this->cin_pipe == kBadPipeValue) {
-                throw std::runtime_error("ProcessBuilder: bad pipe value for cin");
-            }
-
-            pipe_set_inheritable(this->cin_pipe, true);
-            posix_spawn_file_actions_adddup2(&action, this->cin_pipe, kStdInValue);
-            posix_spawn_file_actions_addclose(&action, this->cin_pipe);
-        } else if (cin_option == PipeOption::pipe) {
-            cin_pair = pipe_create();
-            posix_spawn_file_actions_addclose(&action, cin_pair.output);
-            posix_spawn_file_actions_adddup2(&action, cin_pair.input, kStdInValue);
-            posix_spawn_file_actions_addclose(&action, cin_pair.input);
-            process.cin = cin_pair.output;
-        }
-
-
-        if (cout_option == PipeOption::close)
-            posix_spawn_file_actions_addclose(&action, kStdOutValue);
-        else if (cout_option == PipeOption::pipe) {
-            cout_pair = pipe_create();
-            posix_spawn_file_actions_addclose(&action, cout_pair.input);
-            posix_spawn_file_actions_adddup2(&action, cout_pair.output, kStdOutValue);
-            posix_spawn_file_actions_addclose(&action, cout_pair.output);
-            process.cout = cout_pair.input;
-        } else if (cout_option == PipeOption::cerr) {
-            // we have to wait until stderr is setup first
-        } else if (cout_option == PipeOption::specific) {
-            if (this->cout_pipe == kBadPipeValue) {
-                throw std::runtime_error("ProcessBuilder: bad pipe value for cout");
-            }
-            pipe_set_inheritable(this->cout_pipe, true);
-            posix_spawn_file_actions_adddup2(&action, this->cout_pipe, kStdOutValue);
-            posix_spawn_file_actions_addclose(&action, this->cout_pipe);
-        }
-
-        if (cerr_option == PipeOption::close)
-            posix_spawn_file_actions_addclose(&action, kStdErrValue);
-        else if (cerr_option == PipeOption::pipe) {
-            cerr_pair = pipe_create();
-            posix_spawn_file_actions_addclose(&action, cerr_pair.input);
-            posix_spawn_file_actions_adddup2(&action, cerr_pair.output, kStdErrValue);
-            posix_spawn_file_actions_addclose(&action, cerr_pair.output);
-            process.cerr = cerr_pair.input;
-        } else if (cerr_option == PipeOption::cout) {
-            posix_spawn_file_actions_adddup2(&action, kStdOutValue, kStdErrValue);
-        } else if (cerr_option == PipeOption::specific) {
-            if (this->cerr_pipe == kBadPipeValue) {
-                throw std::runtime_error("ProcessBuilder: bad pipe value for cerr");
-            }
-
-            pipe_set_inheritable(this->cerr_pipe, true);
-            posix_spawn_file_actions_adddup2(&action, this->cerr_pipe, kStdErrValue);
-            posix_spawn_file_actions_addclose(&action, this->cerr_pipe);
-        }
-
-        if (cout_option == PipeOption::cerr) {
-            posix_spawn_file_actions_adddup2(&action, kStdErrValue, kStdOutValue);
-        }
-        pid_t pid;
-        cstring_vector args;
-        args.reserve(command.size()+1);
-        args.push_back(program);
-        for(size_t i = 1; i < command.size(); ++i) {
-            args.push_back(command[i]);
-        }
-        args.push_back(nullptr);
-        char** env = environ;
-        cstring_vector env_store;
-        if (!this->env.empty()) {
-            for (auto& pair : this->env) {
-                std::string line = pair.first + "=" + pair.second;
-                env_store.push_back(line);
-            }
-            env_store.push_back(nullptr);
-            env = &env_store[0];
-        }
-        {
-            /*  I should have gone with vfork() :(
-                TODO: reimplement with vfork for thread safety.
-
-                this locking solution should work in practice just fine.
-            */
-            static std::mutex mutex;
-            std::unique_lock<std::mutex> lock(mutex);
-            CwdGuard cwdGuard;
-            if (!this->cwd.empty())
-                subprocess::setcwd(this->cwd);
-            if(posix_spawn(&pid, args[0], &action, NULL, &args[0], env) != 0)
-                throw SpawnError("posix_spawn failed with error: " + std::string(strerror(errno)));
-        }
-        args.clear();
-        env_store.clear();
-        if (cin_pair)
-            cin_pair.close_input();
-        if (cout_pair)
-            cout_pair.close_output();
-        if (cerr_pair)
-            cerr_pair.close_output();
-        cin_pair.disown();
-        cout_pair.disown();
-        cerr_pair.disown();
-        process.pid = pid;
-        process.args = command;
-        return process;
-    }
-#endif
 
     CompletedProcess run(Popen& popen, bool check) {
         CompletedProcess completed;
@@ -682,7 +545,7 @@ namespace subprocess {
         popen.wait();
         completed.returncode = popen.returncode;
         completed.args = command;
-        if (options.check) {
+        if (options.check && completed.returncode != 0) {
             CalledProcessError error("failed to execute " + command[0]);
             error.cmd           = command;
             error.returncode    = completed.returncode;
