@@ -296,6 +296,17 @@ namespace buildhl {
 #undef LOAD
 
     }
+    CommandLine process_shebang_recursively(CommandLine args) {
+        while (tea::is_file(args[0])) {
+            CommandLine parts = tea::parse_shebang_file(args[0]);
+            if (parts.empty())
+                break;
+            if (!parts.empty()) {
+                args.insert(args.begin(), parts.begin(), parts.end());
+            }
+        }
+        return args;
+    }
 
     void load_env(CommandLine cmd) {
         if (cmd.empty())
@@ -305,6 +316,10 @@ namespace buildhl {
         for (auto& part : cmd) {
             part = tea::replace_string_variables(part, env);
         }
+        #ifdef _WIN32
+        cmd = process_shebang_recursively(cmd);
+        cmd = tea::process_env(cmd);
+        #endif
 
         auto process = subprocess::RunBuilder(cmd)
             .cout(subprocess::PipeOption::pipe)
@@ -318,6 +333,8 @@ namespace buildhl {
             StaticString str(line.c_str());
             if (str.find("=") == StaticString::npos)
                 continue;
+            while (str[str.size()-1] == '\r')
+                str.trim_end(1);
             auto equal_pos = str.find("=");
             StaticString value = str.substr(equal_pos+1);
             size_t name_start = equal_pos -1;
