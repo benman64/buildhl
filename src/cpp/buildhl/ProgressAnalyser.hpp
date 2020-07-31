@@ -1,3 +1,5 @@
+#define NOMINMAX
+
 #include <cstdint>
 #include <vector>
 #include <string>

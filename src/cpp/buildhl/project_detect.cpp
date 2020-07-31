@@ -397,34 +397,9 @@ namespace buildhl {
 
     BuildProject_uptr detect_build_project(InvocationInfo invocation) {
         std::string dir = subprocess::abspath(invocation.project_dir);
-        std::string project_dir;
-        std::string build_dir;
+        std::string project_dir = invocation.project_dir;
         using tea::split;
         if (fs::exists(dir + "/buildhl.json")) {
-            FILE*fp = fopen((dir + "/CMakeCache.txt").c_str(), "rb");
-            CFileInputStream input(fp);
-            std::string data = read_all(input);
-
-            auto lines = split(data, '\n');
-            for(auto& line : lines) {
-                if (line.empty() || line[0] == '#' || line[0] == '/')
-                    continue;
-                auto parts = split(line, '=');
-                if (parts.size() != 2)
-                    continue;
-                std::string name = parts[0];
-                std::string value = parts[1];
-                if (name.find('-') != std::string::npos) {
-                    name = name.substr(0, name.find('-'));
-                }
-                if (name.find(':') != std::string::npos) {
-                    name = name.substr(0, name.find(':'));
-                }
-                if (name == "CMAKE_HOME_DIRECTORY") {
-                    project_dir = value;
-                }
-            }
-            build_dir = dir;
             return std::make_unique<BuildProject>(project_dir);
         }
 

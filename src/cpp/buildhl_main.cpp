@@ -5,6 +5,10 @@
 #include <mutex>
 #include <thread>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 #include "buildhl/highlight.hpp"
 
 #include "buildhl/project_detect.hpp"
@@ -13,6 +17,22 @@
 
 using namespace buildhl;
 
+// nothing for all other OS's
+void enableColors() {}
+#ifdef _WIN32
+void enableColors() {
+    HANDLE hstd = GetStdHandle(STD_OUTPUT_HANDLE);
+    DWORD flags;
+    // no colors is not a big deal so just silently return
+    if (!GetConsoleMode(hstd, &flags))
+        return;
+
+    if (flags & ENABLE_VIRTUAL_TERMINAL_PROCESSING)
+        return;
+
+    SetConsoleMode(hstd, flags | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+}
+#endif
 std::string dirname(std::string path) {
     size_t slash_pos = path.size();;
     for (size_t i = 0; i < path.size(); ++i) {
@@ -87,6 +107,7 @@ public:
 
         line = m_file_filter.filter(line);
         line = color_line(line);
+        enableColors();
         if (m_last_is_progress) {
             std::cout << '\r';
             bcolors colors;
