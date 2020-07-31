@@ -17,8 +17,7 @@
 
 using namespace buildhl;
 
-// nothing for all other OS's
-void enableColors() {}
+
 #ifdef _WIN32
 void enableColors() {
     HANDLE hstd = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -32,6 +31,9 @@ void enableColors() {
 
     SetConsoleMode(hstd, flags | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
 }
+#else
+// nothing for all other OS's
+void enableColors() {}
 #endif
 std::string dirname(std::string path) {
     size_t slash_pos = path.size();;
