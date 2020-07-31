@@ -55,7 +55,15 @@ namespace buildhl {
 
     PopenInputStream_uptr popen_command(const CommandLine& command, const std::string& cwd="", subprocess::EnvMap env={}) {
         BlockSignalRaii bsr;
-        auto builder = subprocess::RunBuilder(command)
+        // this makes compatibility on windows better. So you can have the same
+        // script work on windows & other OS's
+        #ifdef _WIN32
+        CommandLine rcommand = tea::process_shebang_recursively(command);
+        rcommand = tea::process_env(rcommand);
+        #else
+        CommandLine rcommand = command;
+        #endif
+        auto builder = subprocess::RunBuilder(rcommand)
             .cwd(cwd)
             .cout(subprocess::PipeOption::pipe).cerr(subprocess::PipeOption::cout);
         if (!env.empty()) {
