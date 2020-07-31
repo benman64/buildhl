@@ -275,7 +275,7 @@ namespace buildhl {
     }
 
     BuildProject::BuildProject(const std::string& project_dir) : Project(project_dir) {
-        m_build_file = project_dir + "/build_file";
+        m_build_file = project_dir + "/buildhl.json";
         auto json = tea::load_json_file(m_build_file);
 
 #define LOAD(what) if (json.contains(#what)) { \
@@ -286,6 +286,7 @@ namespace buildhl {
         LOAD(configure)
         LOAD(should_configure)
 #undef LOAD
+
     }
 
     void load_env(CommandLine cmd) {
@@ -374,6 +375,12 @@ namespace buildhl {
 
     InputStream_uptr BuildProject::configure(CommandLine args) {
         CommandLine cmd = m_commands.configure;
+        if (cmd.empty()) {
+            if (m_base_project != nullptr) {
+                return m_base_project->configure(args);
+            }
+            return nullptr;
+        }
         auto env = get_build_env();
 
         for (auto& part : cmd) {
@@ -385,6 +392,12 @@ namespace buildhl {
 
     InputStream_uptr BuildProject::make(std::string target) {
         CommandLine cmd = m_commands.configure;
+        if (cmd.empty()) {
+            if (m_base_project != nullptr) {
+                return m_base_project->make(target);
+            }
+            return nullptr;
+        }
         auto env = subprocess::current_env_copy();
         if (!target.empty())
             env["TARGET"] = target;

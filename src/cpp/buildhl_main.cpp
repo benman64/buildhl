@@ -52,7 +52,12 @@ public:
     StreamProcessor(const std::string log_file) {
         std::string dir = dirname(log_file);
         if (!tea::path_exists(dir)) {
-            tea::mkdir_p(dir);
+            try {
+                // bug in this guy needs to be fixed
+                tea::mkdir_p(dir);
+            } catch (...) {
+
+            }
         }
         FILE* fp = nullptr;
         if (!log_file.empty())
