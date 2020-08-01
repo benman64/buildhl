@@ -105,10 +105,14 @@ public:
         auto tokens = tokenize(line_ss);
         for (auto token : tokens) {
             lex::StaticString str = line_ss.substr(token);
-            if (str == "error")
+            auto upper = str.to_upper();
+            if (upper == "ERROR") {
                 ++m_total_errors;
-            else if (str == "warning")
+                break;
+            } else if (upper == "WARNING") {
                 ++m_total_warnings;
+                break;
+            }
         }
         Progress progress = parse_progress(line);
 
