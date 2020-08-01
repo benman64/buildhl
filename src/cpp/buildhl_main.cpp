@@ -145,8 +145,11 @@ public:
             std::string pline = render_progress(progress, 20);
             pline = left_pad(std::to_string((int)(progress*100)), 3) + "% " + pline;
             pline += " " + nice_time(m_progress.eta()) + " eta";
-            std::cout << pline;
-            std::cout << std::flush;
+            if (pline != m_progress_line || !m_last_is_progress) {
+                m_progress_line = pline;
+                std::cout << pline;
+                std::cout << std::flush;
+            }
             m_last_is_progress = true;
         } else {
             m_last_is_progress = false;
@@ -217,6 +220,7 @@ private:
     std::mutex m_mutex;
     std::thread m_update_thread;
     bool m_active = true;
+    std::string m_progress_line;
 
     int m_total_errors      = 0;
     int m_total_warnings    = 0;
