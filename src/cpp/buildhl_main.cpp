@@ -48,6 +48,9 @@ class StreamProcessor {
 public:
     StreamProcessor(){
         process_line("[build start]");
+        std::string absolute_str = subprocess::cenv["BUILDHL_ABSOLUTE"];
+        bool absolute = !absolute_str.empty() && absolute_str != "0";
+        m_file_filter.set_always_absolute(absolute);
     }
     StreamProcessor(const std::string log_file) {
         std::string dir = dirname(log_file);

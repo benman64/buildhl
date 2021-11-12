@@ -45,7 +45,7 @@ namespace buildhl {
             if (ch == '\\')
                 ch = '/';
         }
-        if (m_base_dir.empty())
+        if (m_base_dir.empty() || m_always_absolute)
             return path;
         if (!tea::starts_with(path, m_base_dir.c_str())) {
             return path;
