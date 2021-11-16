@@ -4,7 +4,7 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Release/Debug")
 endif()
 
-project(ubuild VERSION 0.2.0 LANGUAGES CXX C)
+project(ubuild VERSION 0.3.0 LANGUAGES CXX C)
 
 message(STATUS "yay = $ENV{YAY}")
 set(CMAKE_CXX_STANDARD 17)

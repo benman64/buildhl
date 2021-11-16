@@ -253,7 +253,7 @@ struct CinStream : buildhl::InputStream {
 };
 
 void print_help() {
-    std::cout << R"(buildhl - Highlight your build output.
+    std::cout << "buildhl " PROJECT_VERSION R"( - Highlight your build output.
 
 usage: buildhl -
     do "command | buildhl -" to process stdin. No further options will be
