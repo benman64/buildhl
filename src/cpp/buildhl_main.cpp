@@ -238,22 +238,68 @@ std::vector<std::string> argv_to_vector(int argc, char** argv) {
     return result;
 }
 
+std::vector<std::string> argv_to_vector(int argc, lex::CString* argv) {
+    std::vector<std::string> result;
+    for (int i = 1; i < argc; ++i) {
+        result.push_back(argv[i].str);
+    }
+    return result;
+}
+
 struct CinStream : buildhl::InputStream {
     ssize_t read(void* buffer, size_t size) override {
         return fread(buffer, 1, size, stdin);
     }
 };
 
-int main(int argc, char** argv) {
+void print_help() {
+    std::cout << R"(buildhl - Highlight your build output.
+
+usage: buildhl -
+    do "command | buildhl -" to process stdin. No further options will be
+    processed.
+
+usage: buildhl [<options>] [<build-type>=debug|release] [<target>]
+
+    build-type  It is optionsal and can be either debug or release. Default is
+                release.
+    
+    target      Optional the target to build. If ommitted, it's ommited being
+                specified when running build command.
+
+
+options:
+    --build     The build directory to use. Defaults to
+                <project>/build/<build-type>
+    --project   defaults to PWD. The directory of which project
+    --target    The target to build. If ommitted, it's ommited being specified
+                when running build command.
+
+Environment variables:
+    BUILDHL_MAX_JOBS    When possible this number will be used to specify to
+                        builders for the amount of jobs they run concurrently.
+
+These environment variables are set for invocations of buildhl:
+    BUILDHL_BUILD_TYPE
+    BUILDHL_TARGET
+    BUILDHL_PROJECT_DIR
+    BUILDHL_MAX_JOBS
+)";
+}
+int main(int argc, lex::CString* argv) {
     for (int i = 1; i < argc; ++i) {
-        if (strcmp(argv[i], "--version") == 0) {
+        if (argv[i] == "--version") {
             std::cout << "buildhl version " PROJECT_VERSION;
             std::cout << "\n";
             return 0;
         }
+        if (argv[i] == "--help") {
+            print_help();
+            return 1;
+        }
     }
 
-    if (argc == 2 && strcmp(argv[1], "-") == 0) {
+    if (argc == 2 && argv[1] == "-") {
         StreamProcessor stream_processor;
         stream_processor.add_search_path(tea::getcwd());
         CinStream cin;

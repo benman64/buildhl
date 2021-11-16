@@ -45,6 +45,127 @@ namespace lex {
         explicit operator bool() const { return start == end; }
     };
 
+    // binary compatible with const char*
+    struct CString {
+        CString(const CString&)=default;
+        CString(const char* other) {
+            static_assert(sizeof(*this) == sizeof(const char*), "CString wrong size");
+            static_assert(sizeof(CString*) == sizeof(const char**), "CString array wrong size");
+            str = other;
+        }
+
+        const char* c_str() const {
+            return str;
+        }
+
+        static int cmp(const char* first, const char* second) {
+            if (first == second)
+                return 0;
+            if (first == nullptr)
+                return -1;
+            if (second == nullptr)
+                return 1;
+            while(*first && *second) {
+                if (*first < *second)
+                    return -1;
+                if (*first > *second)
+                    return 1;
+                ++first;
+                ++second;
+            }
+            if (*first < *second)
+                return -1;
+            if (*first > *second)
+                return 1;
+            return 0;
+        }
+
+        static int ncmp(const char* first, const char* second, int max_size) {
+            if (first == second)
+                return 0;
+            if (first == nullptr)
+                return -1;
+            if (second == nullptr)
+                return 1;
+            int count = 0;
+            while(*first && *second && count < max_size) {
+                if (*first < *second)
+                    return -1;
+                if (*first > *second)
+                    return 1;
+                ++first;
+                ++second;
+                ++count;
+            }
+            if (count == max_size)
+                return 0;
+            if (*first < *second)
+                return -1;
+            if (*first > *second)
+                return 1;
+            return 0;
+
+        }
+        int compare(const CString& other) const {
+            return cmp(this->str, other.str);
+        }
+
+        explicit operator const char*() {
+            return str;
+        }
+        
+        CString& operator =(const CString&)=default;
+        CString &operator=(const char* str) {
+            this->str = str;
+            return *this;
+        }
+        #define OP(op) bool operator op(const CString& other) const { \
+            return cmp(str, other.str) op 0; \
+        } \
+        bool operator op(const char* other) const { \
+            return cmp(str, other) op 0; \
+        }
+
+        OP(>) OP(<) OP(>=) OP(<=) OP(==) OP(!=)
+        #undef OP
+        
+        CString& operator +=(int n) {
+            str += n;
+            return *this;
+        }
+        CString& operator -=(int n) {
+            str -= n;
+            return *this;
+        }
+
+        CString& operator ++() {
+            ++str;
+            return *this;
+        }
+        CString operator ++(int) {
+            auto value = str;
+            ++str;
+            return value;
+        }
+        CString operator --(int) {
+            auto value = str;
+            --str;
+            return value;
+        }
+
+        bool starts_with(const char* other) const {
+            if (other == nullptr || *other == 0)
+                return true;
+            return ncmp(str, other, strlen(other)) == 0;
+        }
+
+        std::size_t size() const {
+            return strlen(str);
+        }
+
+        const char* str;
+    };
+
     struct StaticString {
         static const auto npos = std::string::npos;
         typedef char value_type;
