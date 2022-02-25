@@ -286,7 +286,9 @@ These environment variables are set for invocations of buildhl:
     BUILDHL_MAX_JOBS
 )";
 }
-int main(int argc, lex::CString* argv) {
+int main(int argc, char** argv_in) {
+    auto argv = reinterpret_cast<lex::CString*>(argv_in);
+
     for (int i = 1; i < argc; ++i) {
         if (argv[i] == "--version") {
             std::cout << "buildhl version " PROJECT_VERSION;

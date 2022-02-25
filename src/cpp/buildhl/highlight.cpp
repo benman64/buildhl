@@ -24,60 +24,53 @@ std::string lowercase(std::string str) {
 std::string lowercase(lex::StaticString str) {
     return lowercase(to_string(str));
 }
+
 std::vector<lex::Range> tokenize(lex::StaticString line) {
     std::vector<lex::Range> tokens;
     using namespace lex;
-    lex::StaticString cursor(line);
     std::vector<StaticString> symbols {"==", ">=", "<=",
         "+=", "-=", "*=", "/=",
         "::",
         "=", "<", ">", "/", "*", "+", "-", ":", "+", ";", "%", "!", "~",
         "[", "{", "}", "]", "?", "(", ")", "^", "@", "@"};
+    lex::Tokenizer tokenizer(line);
 
-    for(; cursor; cursor.trim_start(1)) {
-        // there should not be more tokens then chars in line
-        assert(tokens.size() < line.size());
-        if (is_varchar(cursor[0])) {
-            Range range = line.range_to_char([](char ch) -> bool {
-                return !is_varchar(ch);
-            }, line.offset_of(cursor));
-            tokens.push_back(range);
-            cursor.start = range.end + line.start-1;
-        } else if (auto sym = cursor.which_of(symbols)) {
-            Range range;
-            range.start = cursor.start - line.start;
-            range.end = range.start + sym.size();
-            cursor.trim_start(sym.size()-1);
-            tokens.push_back(range);
-        } else if (cursor[0] == '\"') {
-            Range range = cursor.range_to([] (const StaticString& str, const StaticString& cursor) -> bool {
-                return cursor[0] == '\"' && !(str.count_back_backslashes(str.offset_of(cursor)-1) & 1);
-            }, 1);
-            auto offset = line.offset_of(cursor);
-            range.start = offset;
-            range.end += offset + 1;
-            tokens.push_back(range);
-            cursor.start = range.end -1 + line.start;
-        } else if (cursor[0] == '\'') {
-            Range range;
-            range.start = cursor.start - line.start;
-            range.end = range.start;
-            while (cursor) {
-                cursor.trim_start(1);
-                if (cursor[0] == '\'') {
-                    if (line.count_back_backslashes(cursor.start - line.start - 1) & 1) {
-                        continue;
-                    }
-                    break;
+    struct QuoteToken {
+        int operator() (Tokenizer& tokenizer) {
+            if (tokenizer.cursor[0] != quote) {
+                return 0;
+            }
+
+            for (int i = 1; i < (int)tokenizer.cursor.size(); ++i) {
+                if (tokenizer.cursor[i] == '\\') {
+                    ++i;
+                } else if (tokenizer.cursor[i] == quote) {
+                    return i+1;
                 }
             }
-            range.end = cursor.start - line.start+1;
+            return 0;
+        }
+
+        char quote = '\"';
+    };
+
+    QuoteToken doubleQuote;
+    QuoteToken singleQuote = {'\''};
+    while(tokenizer) {
+        // there should not be more tokens then chars in line
+        assert(tokens.size() < line.size());
+        Range range = TokenBuilder(&tokenizer).range_of_char(is_varchar)
+            .range_of_symbol(symbols)
+            .range_func(singleQuote)
+            .range_func(doubleQuote)
+            .skip_char().range();
+
+        if (range) {
             tokens.push_back(range);
         }
     }
     return tokens;
 }
-
 
 bool is_numbers(const std::string& str) {
     if (str[0] == '0' && (str[1] == 'x' || str[1] == 'X')) {

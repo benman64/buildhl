@@ -42,7 +42,7 @@ namespace lex {
             return *this;
         }
 
-        explicit operator bool() const { return start == end; }
+        explicit operator bool() const { return start < end; }
     };
 
     // binary compatible with const char*
@@ -113,7 +113,7 @@ namespace lex {
         explicit operator const char*() {
             return str;
         }
-        
+
         CString& operator =(const CString&)=default;
         CString &operator=(const char* str) {
             this->str = str;
@@ -128,7 +128,7 @@ namespace lex {
 
         OP(>) OP(<) OP(>=) OP(<=) OP(==) OP(!=)
         #undef OP
-        
+
         CString& operator +=(int n) {
             str += n;
             return *this;
@@ -194,32 +194,29 @@ namespace lex {
             }
             return npos;
         }
-        template<typename Matcher>
-        Range range_to_char(const Matcher& matcher, size_type pos=0) const {
-            Range range;
-            range.start = pos;
-            for (size_type i = pos; i < size(); ++i) {
-                if (matcher(start[i])) {
-                    range.end = i;
-                    return range;
+        template<char>
+        size_type find_char(char ch, int pos = 0) const {
+            for (auto it = start + pos; it < last; ++it) {
+                if (*it == ch) {
+                    return it - start;
                 }
             }
-            range.end = size();
-            return range;
+            return npos;
         }
+
         template<typename Matcher>
-        Range range_to(const Matcher& matcher, size_type pos=0) const {
+        Range range_of_char(const Matcher& matcher, size_type pos=0) const {
             Range range;
             range.start = pos;
-            StaticString cursor = substr(pos);
-            for (size_type i = pos; cursor; ++i, cursor.trim_start(1)) {
-                if (matcher(*this, cursor)) {
+            range.end = pos;
+            for (size_type i = pos; i < size(); ++i) {
+                if (!matcher(start[i])) {
                     range.end = i;
                     return range;
                 }
             }
-            range.end = size();
             return range;
+
         }
         size_type offset_of(const StaticString& other) const {
             return other.start - start;
@@ -272,6 +269,7 @@ namespace lex {
             }
             return *this;
         }
+
         bool skip_to_if(const char* begins_with, const char* ends_with) {
             if (starts_with(begins_with)) {
                 trim_to(ends_with);
@@ -329,5 +327,228 @@ namespace lex {
         }
     };
 
+    struct ConsecutiveCharCounter {
+        ConsecutiveCharCounter(char ch) {
+            m_char = ch;
+        }
+
+        ConsecutiveCharCounter& operator<<(char ch) {
+            if (ch == m_char) {
+                ++m_count;
+            } else {
+                m_count = 0;
+            }
+            return *this;
+        }
+
+        bool is_even() const { return !(m_count & 1); }
+        bool is_odd() const { return m_count & 1; }
+        int count() const { return m_count; }
+
+    private:
+        char m_char;
+        int m_count = 0;
+    };
+
+    struct Tokenizer {
+        Tokenizer(StaticString text) {
+            this->text = text;
+            this->cursor = text;
+        }
+        StaticString text;
+        StaticString cursor;
+
+        Range update_cursor(Range range) {
+            auto trim = range.end;
+            range.offset(text.offset_of(cursor));
+            cursor.trim_start(trim);
+            return range;
+        }
+
+        Range update_cursor(int length) {
+            Range range;
+            range.end = length;
+            return update_cursor(range);
+        }
+
+        template<typename Matcher>
+        Range range_of_char(Matcher matcher) {
+            if (auto range = cursor.range_of_char(matcher)) {
+                return update_cursor(range);
+            }
+            return {};
+        }
+
+        template<typename Array>
+        Range range_of_symbol(const Array& list) {
+            for (const auto& str : list) {
+                if (cursor.starts_with(str)) {
+                    return update_cursor(str.size());
+                }
+            }
+            return {};
+        }
+
+        template<typename RangeCheck>
+        Range range_func(RangeCheck func) {
+            if (auto range = func(*this)) {
+                return update_cursor(range);
+            }
+            return {};
+        }
+
+        void skip_char() {
+            cursor.trim_start(1);
+        }
+
+        explicit operator bool() const {
+            return cursor.size() > 0;
+        }
+    };
+
+    struct TokenBuilder {
+        TokenBuilder(Tokenizer* tokenizer) {
+            m_tokenizer = tokenizer;
+        }
+
+        template<typename RangeCheck>
+        TokenBuilder& range_func(RangeCheck func) {
+            if (!m_range) {
+                m_range = m_tokenizer->range_func(func);
+            }
+
+            return *this;
+        }
+
+        template<typename Array>
+        TokenBuilder& range_of_symbol(const Array& list) {
+            if (!m_range) {
+                m_range = m_tokenizer->range_of_symbol(list);
+            }
+
+            return *this;
+        }
+
+        template<typename Matcher>
+        TokenBuilder& range_of_char(Matcher matcher) {
+            if (!m_range) {
+                m_range = m_tokenizer->range_of_char(matcher);
+            }
+
+            return *this;
+        }
+
+        TokenBuilder& skip_char() {
+            if (!m_range) {
+                m_tokenizer->skip_char();
+            }
+            return *this;
+        }
+
+        Range range() const { return m_range; }
+    private:
+        Tokenizer* m_tokenizer;
+        Range m_range;
+
+    };
     inline std::string to_string(const StaticString& str) { return str.to_string(); }
+
+    struct TokenBase {
+        StaticString str;
+    };
+
+    template<typename Token>
+    std::vector<Token> tokenize(StaticString str, std::vector<StaticString> separators) {
+        // so we match the longest string first
+        sort(separators.begin(), separators.end(), [](const StaticString& a, const StaticString& b) {
+            return b.size() > a.size();
+        });
+        std::vector<Token> tokens;
+        StaticString next;
+        while (str) {
+            bool is_sep = false;
+            for (auto sep : separators) {
+                if (str.starts_with(sep)) {
+                    if (next) {
+                        tokens.push_back(next);
+                    }
+                    tokens.push_back(str);
+                    str.trim_start(sep.size());
+                    is_sep = true;
+                    break;
+                }
+            }
+
+            if (is_sep) {
+                continue;
+            }
+            if (next) {
+                next.trim_end(-1);
+            } else {
+                next = str.substr(0, 1);
+            }
+            str.trim_start(1);
+        }
+        if (next) {
+            tokens.push_back(next);
+        }
+        return tokens;
+    }
+
+    template<typename Token>
+    void tokenize_char(std::vector<Token>& tokens, StaticString str, StaticString separators, bool remove = false) {
+        StaticString next;
+        while (str) {
+            bool is_sep = false;
+            for (auto sep_ch : separators) {
+                char sep_str[2] = {sep_ch, 0};
+                StaticString sep = sep_str;
+                if (str.starts_with(sep)) {
+                    if (next) {
+                        tokens.push_back(next);
+                    }
+                    if (!remove) {
+                        tokens.push_back(str);
+                    }
+                    str.trim_start(sep.size());
+                    is_sep = true;
+                    break;
+                }
+            }
+
+            if (is_sep) {
+                continue;
+            }
+            if (next) {
+                next.trim_end(-1);
+            } else {
+                next = str.substr(0, 1);
+            }
+            str.trim_start(1);
+        }
+        if (next) {
+            tokens.push_back(next);
+        }
+    }
+
+    template<typename Array, typename Array2>
+    void append_array(Array& array, const Array2& more){
+        array.insert(array.end(), more.begin(), more.end());
+    }
+
+    template<typename Token>
+    void tokenize_chars(std::vector<Token>& output, std::vector<Token> input, StaticString chars, bool remove = false) {
+        for (const auto& cur_token : input) {
+            StaticString str = cur_token.str;
+            tokenize_chars(output, str, chars, remove);
+        }
+    }
+
+    template<typename Token, typename Func>
+    void tokenize(std::vector<Token>& output, const std::vector<Token>& input, Func& tokenizer) {
+        for(auto& token : input) {
+            StaticString str = token.str;
+            tokenizer(output, str);
+        }
+    }
 }
