@@ -263,7 +263,7 @@ usage: buildhl [<options>] [<build-type>=debug|release] [<target>]
 
     build-type  It is optionsal and can be either debug or release. Default is
                 release.
-    
+
     target      Optional the target to build. If ommitted, it's ommited being
                 specified when running build command.
 

@@ -36,7 +36,7 @@ std::vector<lex::Range> tokenize(lex::StaticString line) {
     lex::Tokenizer tokenizer(line);
 
     struct QuoteToken {
-        int operator() (Tokenizer& tokenizer) {
+        int operator() (const Tokenizer& tokenizer) {
             if (tokenizer.cursor[0] != quote) {
                 return 0;
             }

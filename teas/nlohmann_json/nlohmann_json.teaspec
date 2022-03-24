@@ -1,6 +1,6 @@
 {
     "name": "nlohmann_json",
-    "version": "scan-https://github.com/nlohmann/json/releases",
+    "version": "3.10.5",
     "summary": "JSON for Modern C++",
     "description": "long description",
     "homepage": "https://github.com/nlohmann/json",
@@ -12,7 +12,7 @@
         "Your Name": "yourl@email.com"
     },
     "artifact": {
-        "archive": "https://github.com/nlohmann/json/releases/download/v$version/json.hpp",
+        "archive": "https://github.com/nlohmann/json/releases/download/v3.10.5/json.hpp",
         "extract": false
     },
     "constraints": [
@@ -27,3 +27,4 @@
     "exclude_files": [
     ]
 }
+

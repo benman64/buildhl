@@ -56,11 +56,20 @@ namespace tea {
     }
     bool mkdir(const std::string& dir, int mode) {
         throw_signal_ifneeded();
-        return std::filesystem::create_directory(dir);
+        try {
+            return std::filesystem::create_directory(dir);
+        } catch (...) {
+
+        }
+        return false;
     }
     bool mkdir_p(const std::string& dir) {
         throw_signal_ifneeded();
-        return std::filesystem::create_directories(dir);
+        try {
+            return std::filesystem::create_directories(dir);
+        } catch (...) {
+        }
+        return false;
     }
     bool path_exists(const std::string& path) {
         return is_file(path) || is_dir(path);
@@ -544,14 +553,14 @@ namespace tea {
             parent += '/';
         if(child[child.size()-1] != '/')
             child += '/';
-        
+
         if(parent.size() > child.size())
             return false;
-        
+
         if(parent == child)
             return true;
         return child.substr(0, parent.size()) == parent;
-        
+
     }
 
     std::string join_path(std::string parent, std::string child) {
@@ -565,6 +574,9 @@ namespace tea {
         }
         parent = clean_path(parent);
         child = clean_path(child);
+        if (parent.empty()) {
+            return child;
+        }
         while(child.size() >= 2) {
             if(child[0] == '.' && child[1] == '/') {
                 child = child.substr(2);
