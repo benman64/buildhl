@@ -274,6 +274,7 @@ options:
     --project   defaults to PWD. The directory of which project
     --target    The target to build. If ommitted, it's ommited being specified
                 when running build command.
+    --dir       add additional search path for file rewriting.
 
 Environment variables:
     BUILDHL_MAX_JOBS    When possible this number will be used to specify to
@@ -289,11 +290,15 @@ These environment variables are set for invocations of buildhl:
 int main(int argc, char** argv_in) {
     auto argv = reinterpret_cast<lex::CString*>(argv_in);
 
+    std::vector<std::string> search_paths;
     for (int i = 1; i < argc; ++i) {
         if (argv[i] == "--version") {
             std::cout << "buildhl version " PROJECT_VERSION;
             std::cout << "\n";
             return 0;
+        } else if (argv[i] == "--dir") {
+            search_paths.push_back(argv[i+1].c_str());
+            ++i;
         }
         if (argv[i] == "--help") {
             print_help();
@@ -304,6 +309,9 @@ int main(int argc, char** argv_in) {
     if (argc == 2 && argv[1] == "-") {
         StreamProcessor stream_processor;
         stream_processor.add_search_path(tea::getcwd());
+        for (auto path : search_paths) {
+            stream_processor.add_search_path(path);
+        }
         CinStream cin;
         stream_processor.process(cin);
         return 0;
